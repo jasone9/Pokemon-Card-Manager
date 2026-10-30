@@ -8,7 +8,7 @@ from urllib.request import urlopen
 
 from PIL import Image, ImageTk
 
-from . import control, model
+from . import control, model, theme
 
 STORAGE_ERRORS = (OSError, ValueError, sqlite3.Error)
 
@@ -19,13 +19,30 @@ class PokemonCardManager:
         self.last_card = None
         self.photo = None
         root.title("Pokemon Card Manager")
-        root.geometry("1000x720")
-        root.minsize(760, 560)
-        root.rowconfigure(0, weight=1)
+        root.geometry("1060x820")
+        root.minsize(840, 700)
+        self.style = theme.apply_theme(root)
+        root.rowconfigure(1, weight=1)
         root.columnconfigure(0, weight=1)
+        device = tk.Frame(root, background=theme.RED)
+        device.grid(row=0, column=0, sticky="ew", padx=2, pady=(2, 0))
+        device.columnconfigure(0, weight=1)
+        theme.device_header(device).grid(row=0, column=0, sticky="ew", padx=24, pady=(18, 14))
+        tk.Frame(device, background=theme.INK, height=5).grid(row=1, column=0, sticky="ew")
+        screen = tk.Frame(root, background=theme.WHITE, highlightbackground=theme.INK,
+                          highlightcolor=theme.INK, highlightthickness=3)
+        screen.grid(row=1, column=0, sticky="nsew", padx=24, pady=(18, 0))
+        screen.rowconfigure(0, weight=1)
+        screen.columnconfigure(0, weight=1)
+        footer = tk.Frame(root, background=theme.RED_DARK)
+        footer.grid(row=2, column=0, sticky="ew", padx=24, pady=(14, 18))
+        tk.Label(footer, text="●  PERSONAL CARD ARCHIVE", foreground=theme.WHITE,
+                 background=theme.RED_DARK, font=("TkDefaultFont", 9, "bold")).pack(side="left")
+        tk.Label(footer, text="COLLECT  /  ORGANIZE  /  DISCOVER", foreground=theme.WHITE,
+                 background=theme.RED_DARK, font=("TkDefaultFont", 9)).pack(side="right")
         self.filter_field = tk.StringVar(master=root, value="Name")
         self.filter_text = tk.StringVar(master=root, value="")
-        self.pages = [ttk.Frame(root, padding=16) for _ in range(3)]
+        self.pages = [ttk.Frame(screen, padding=24) for _ in range(3)]
         for page in self.pages:
             page.grid(row=0, column=0, sticky="nsew")
         self._build_collection_page()
@@ -39,80 +56,144 @@ class PokemonCardManager:
     def show_page(self, index):
         self.pages[index].tkraise()
 
+    def _page_heading(self, page, number, title, subtitle):
+        heading = ttk.Frame(page)
+        heading.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 20))
+        heading.columnconfigure(0, weight=1)
+        ttk.Label(heading, text=number, style="Section.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(heading, text=title, style="Title.TLabel").grid(row=1, column=0, sticky="w", pady=(4, 3))
+        ttk.Label(heading, text=subtitle, style="Muted.TLabel").grid(row=2, column=0, sticky="w")
+        actions = ttk.Frame(heading)
+        actions.grid(row=0, column=1, rowspan=3, sticky="e", padx=(18, 0))
+        return actions
+
     def _build_collection_page(self):
         page = self.pages[0]
         page.rowconfigure(2, weight=1)
         page.columnconfigure(0, weight=1)
-        heading = ttk.Frame(page)
-        heading.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 16))
-        ttk.Label(heading, text="Pokemon Card Manager", font=("Arial", 18, "bold")).pack(side="left")
-        ttk.Button(heading, text="ADD CARD", command=lambda: self.show_page(1)).pack(side="right")
-        ttk.Button(heading, text="USERS", command=lambda: self.show_page(2)).pack(side="right", padx=8)
-        filters = ttk.Frame(page)
-        filters.grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 12))
-        ttk.Label(filters, text="Filter:").pack(side="left", padx=(0, 8))
+        actions = self._page_heading(page, "01 / COLLECTION", "Your collection",
+                                      "Keep your favorite finds in one place.")
+        ttk.Button(actions, text="Users", style="Secondary.TButton",
+                   command=lambda: self.show_page(2)).pack(side="left", padx=(0, 8))
+        ttk.Button(actions, text="+ Add card", style="Primary.TButton",
+                   command=lambda: self.show_page(1)).pack(side="left")
+        filters = ttk.Frame(page, style="Well.TFrame", padding=12)
+        filters.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 18))
+        filters.columnconfigure(2, weight=1)
+        ttk.Label(filters, text="FILTER BY", style="Well.TLabel").grid(row=0, column=0, padx=(0, 10))
         ttk.Combobox(
             filters, values=("Name", "Set", "Rarity"), textvariable=self.filter_field,
-            state="readonly", width=12,
-        ).pack(side="left", padx=(0, 8))
+            state="readonly", width=10,
+        ).grid(row=0, column=1, padx=(0, 8))
         filter_entry = ttk.Entry(filters, textvariable=self.filter_text, width=24)
-        filter_entry.pack(side="left", padx=(0, 8))
+        filter_entry.grid(row=0, column=2, sticky="ew", padx=(0, 8))
         filter_entry.bind("<Return>", self.refresh_collection_view)
-        ttk.Button(filters, text="FILTER", command=self.refresh_collection_view).pack(side="left", padx=4)
-        ttk.Button(filters, text="CLEAR", command=self.clear_collection_filter).pack(side="left")
+        ttk.Button(filters, text="Filter", style="Primary.TButton",
+                   command=self.refresh_collection_view).grid(row=0, column=3, padx=(0, 6))
+        ttk.Button(filters, text="Clear", style="Secondary.TButton",
+                   command=self.clear_collection_filter).grid(row=0, column=4)
         columns = ("Name", "Set", "Rarity", "Market Value")
-        self.collection_tree = ttk.Treeview(page, columns=columns, show="headings", selectmode="extended")
+        display = tk.Frame(page, background=theme.BORDER, borderwidth=1)
+        display.grid(row=2, column=0, columnspan=2, sticky="nsew")
+        display.rowconfigure(0, weight=1)
+        display.columnconfigure(0, weight=1)
+        self.collection_tree = ttk.Treeview(display, columns=columns, show="headings", selectmode="extended")
         for column in columns:
-            self.collection_tree.heading(column, text=column)
-            self.collection_tree.column(column, width=160, minwidth=100)
-        self.collection_tree.grid(row=2, column=0, sticky="nsew")
-        scrollbar = ttk.Scrollbar(page, orient="vertical", command=self.collection_tree.yview)
-        scrollbar.grid(row=2, column=1, sticky="ns")
+            anchor = "e" if column == "Market Value" else "w"
+            self.collection_tree.heading(column, text=column, anchor=anchor)
+            self.collection_tree.column(column, width=160, minwidth=100, anchor=anchor)
+        self.collection_tree.column("Set", width=230)
+        self.collection_tree.tag_configure("even", background=theme.WHITE)
+        self.collection_tree.tag_configure("odd", background=theme.WELL)
+        self.collection_tree.grid(row=0, column=0, sticky="nsew")
+        scrollbar = ttk.Scrollbar(display, orient="vertical", command=self.collection_tree.yview)
+        scrollbar.grid(row=0, column=1, sticky="ns")
         self.collection_tree.configure(yscrollcommand=scrollbar.set)
-        self.total_value = ttk.Label(page)
-        self.total_value.grid(row=3, column=0, sticky="w", pady=12)
-        ttk.Button(page, text="REMOVE SELECTED", command=self.remove_selected).grid(row=4, column=0, sticky="e")
+        self.empty_label = ttk.Label(display, text="Your collection starts here.\nUse + Add card to save your first find.",
+                                      anchor="center", style="Empty.TLabel")
+        summary = ttk.Frame(page, style="Value.TFrame", padding=(16, 13))
+        summary.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(18, 0))
+        ttk.Button(summary, text="Remove selected", style="Danger.TButton",
+                   command=self.remove_selected).pack(side="right", padx=(12, 0))
+        ttk.Label(summary, text="SAVED MARKET VALUES", style="ValueMeta.TLabel").pack(anchor="w")
+        self.total_value = ttk.Label(summary, style="Value.TLabel")
+        self.total_value.pack(anchor="w", pady=(3, 0))
 
     def _build_add_page(self):
         page = self.pages[1]
-        page.columnconfigure(1, weight=1)
-        ttk.Button(page, text="BACK", command=lambda: self.show_page(0)).grid(row=0, column=0, sticky="w")
-        self.save_button = ttk.Button(page, text="SAVE TO COLLECTION", command=self.save_current_card, state="disabled")
-        self.save_button.grid(row=0, column=2, sticky="e")
-        ttk.Label(page, text="TCGplayer ID or Card Name:").grid(row=1, column=0, padx=(0, 10), pady=20)
-        self.entry = ttk.Entry(page)
-        self.entry.grid(row=1, column=1, sticky="ew", pady=20)
+        page.columnconfigure(0, weight=1)
+        page.rowconfigure(2, weight=1)
+        actions = self._page_heading(page, "02 / CARD LOOKUP", "Discover a card",
+                                      "Search by name or TCGplayer ID.")
+        ttk.Button(actions, text="Back", style="Secondary.TButton",
+                   command=lambda: self.show_page(0)).pack(side="left", padx=(0, 8))
+        self.save_button = ttk.Button(actions, text="Save to collection", style="Primary.TButton",
+                                       command=self.save_current_card, state="disabled")
+        self.save_button.pack(side="left")
+        search = ttk.Frame(page, style="Well.TFrame", padding=12)
+        search.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 18))
+        search.columnconfigure(1, weight=1)
+        ttk.Label(search, text="CARD NAME / ID", style="Well.TLabel").grid(row=0, column=0, padx=(0, 12))
+        self.entry = ttk.Entry(search)
+        self.entry.grid(row=0, column=1, sticky="ew")
         self.entry.bind("<Return>", self.search_card)
-        ttk.Button(page, text="SEARCH", command=self.search_card).grid(row=1, column=2, padx=(10, 0))
-        self.image_label = ttk.Label(page, anchor="center")
-        self.image_label.grid(row=2, column=0, columnspan=3, pady=10)
+        ttk.Button(search, text="Search", style="Primary.TButton",
+                   command=self.search_card).grid(row=0, column=2, padx=(10, 0))
+        preview = ttk.Frame(page, style="Well.TFrame", padding=20)
+        preview.grid(row=2, column=0, columnspan=2, sticky="nsew")
+        preview.columnconfigure(0, weight=1)
+        preview.columnconfigure(1, weight=1)
+        preview.rowconfigure(0, weight=1)
+        self.image_label = ttk.Label(preview, text="CARD PREVIEW", anchor="center", style="Preview.TLabel")
+        self.image_label.grid(row=0, column=0, sticky="nsew", padx=(0, 20))
+        details = ttk.Frame(preview, style="Well.TFrame", padding=(0, 12))
+        details.grid(row=0, column=1, sticky="ew")
+        ttk.Label(details, text="CARD DETAILS", style="Well.TLabel").pack(anchor="w", pady=(0, 14))
         self.card_labels = {}
-        for row, field in enumerate(("Name", "Set", "Type", "Rarity", "Market"), start=3):
-            label = ttk.Label(page)
-            label.grid(row=row, column=0, columnspan=3, pady=3)
+        for field in ("Name", "Set", "Type", "Rarity", "Market"):
+            style = "CardName.TLabel" if field == "Name" else "CardDetail.TLabel"
+            if field == "Market":
+                style = "CardPrice.TLabel"
+            label = ttk.Label(details, style=style)
+            label.pack(anchor="w", fill="x", pady=(4, 12) if field == "Market" else 3)
             self.card_labels[field] = label
 
     def _build_users_page(self):
         page = self.pages[2]
         page.rowconfigure(1, weight=1)
         page.columnconfigure(0, weight=1)
-        ttk.Button(page, text="BACK", command=lambda: self.show_page(0)).grid(row=0, column=0, sticky="w")
-        ttk.Label(page, text="User Management", font=("Arial", 16, "bold")).grid(row=0, column=1, pady=12)
-        self.user_listbox = tk.Listbox(page, height=15, exportselection=False)
-        self.user_listbox.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=12)
-        scrollbar = ttk.Scrollbar(page, orient="vertical", command=self.user_listbox.yview)
-        scrollbar.grid(row=1, column=2, sticky="ns", pady=12)
+        actions = self._page_heading(page, "03 / COLLECTORS", "User management",
+                                      "A shared directory of collector names.")
+        ttk.Button(actions, text="Back to collection", style="Secondary.TButton",
+                   command=lambda: self.show_page(0)).pack()
+        display = ttk.Frame(page, style="Well.TFrame", padding=14)
+        display.grid(row=1, column=0, columnspan=2, sticky="nsew")
+        display.rowconfigure(1, weight=1)
+        display.columnconfigure(0, weight=1)
+        ttk.Label(display, text="REGISTERED COLLECTORS", style="Well.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 10))
+        self.user_listbox = tk.Listbox(display, height=12, exportselection=False,
+                                       background=theme.WHITE, foreground=theme.INK,
+                                       selectbackground=theme.RED, selectforeground=theme.WHITE,
+                                       highlightbackground=theme.BORDER, highlightcolor=theme.BLUE,
+                                       highlightthickness=1, borderwidth=0, selectborderwidth=0,
+                                       font=("TkDefaultFont", 12))
+        self.user_listbox.grid(row=1, column=0, sticky="nsew")
+        scrollbar = ttk.Scrollbar(display, orient="vertical", command=self.user_listbox.yview)
+        scrollbar.grid(row=1, column=1, sticky="ns")
         self.user_listbox.configure(yscrollcommand=scrollbar.set)
-        controls = ttk.Frame(page)
-        controls.grid(row=2, column=0, columnspan=2, pady=12)
-        ttk.Label(controls, text="Username:").pack(side="left", padx=5)
+        controls = ttk.Frame(page, style="Well.TFrame", padding=12)
+        controls.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(18, 12))
+        controls.columnconfigure(1, weight=1)
+        ttk.Label(controls, text="USERNAME", style="Well.TLabel").grid(row=0, column=0, padx=(0, 10))
         self.new_user_entry = ttk.Entry(controls, width=24)
-        self.new_user_entry.pack(side="left", padx=5)
+        self.new_user_entry.grid(row=0, column=1, sticky="ew", padx=(0, 10))
         self.new_user_entry.bind("<Return>", lambda event: self.add_user())
-        ttk.Button(controls, text="ADD USER", command=self.add_user).pack(side="left", padx=5)
-        ttk.Button(controls, text="REMOVE SELECTED", command=self.remove_user).pack(side="left", padx=5)
-        self.total_users = ttk.Label(page)
-        self.total_users.grid(row=3, column=0, sticky="w", pady=12)
+        ttk.Button(controls, text="Add user", style="Primary.TButton",
+                   command=self.add_user).grid(row=0, column=2, padx=(0, 8))
+        ttk.Button(controls, text="Remove selected", style="Danger.TButton",
+                   command=self.remove_user).grid(row=0, column=3)
+        self.total_users = ttk.Label(page, style="Muted.TLabel")
+        self.total_users.grid(row=3, column=0, sticky="w", pady=(0, 4))
 
     def _clear_card_preview(self):
         self.last_card = None
@@ -154,7 +235,7 @@ class PokemonCardManager:
             try:
                 with urlopen(url, timeout=control.HTTP_TIMEOUT) as response:
                     image = Image.open(io.BytesIO(response.read()))
-                    image.thumbnail((280, 350))
+                    image.thumbnail((240, 280))
                     self.photo = ImageTk.PhotoImage(image, master=self.root)
                 self.image_label.configure(image=self.photo)
                 return
@@ -180,14 +261,24 @@ class PokemonCardManager:
     def refresh_collection_view(self, event=None):
         for row in self.collection_tree.get_children():
             self.collection_tree.delete(row)
-        for index, record in model.filter_collection(self.filter_field.get(), self.filter_text.get()):
+        records = model.filter_collection(self.filter_field.get(), self.filter_text.get())
+        for index, record in records:
             price = model.market_value(record.get("market"))
             self.collection_tree.insert(
                 "", "end", iid=str(index), values=(
                     record.get("name"), record.get("set"), record.get("rarity"),
                     f"${price:,.2f}" if price is not None else "-",
-                ),
+                ), tags=("odd" if index % 2 else "even",),
             )
+        if hasattr(self, "empty_label"):
+            if records:
+                self.empty_label.place_forget()
+            else:
+                text = "No cards match this filter.\nTry another search or choose Clear."
+                if not model.collection:
+                    text = "Your collection starts here.\nUse + Add card to save your first find."
+                self.empty_label.configure(text=text)
+                self.empty_label.place(relx=0.5, rely=0.5, anchor="center")
         self.total_value.configure(text=f"Total Value: ${model.collection_total():,.2f}")
 
     def clear_collection_filter(self):

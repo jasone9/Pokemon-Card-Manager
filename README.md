@@ -19,6 +19,7 @@ Pokemon-Card-Manager/
 │   ├── __main__.py       # Explicit application entry point
 │   ├── control.py        # Card API lookup and response handling
 │   ├── model.py          # Collection, filters, users, JSON, SQLite
+│   ├── theme.py          # Pokédex colors, widget styles, and device header
 │   └── view.py           # Tkinter collection/search/user pages
 ├── examples/
 │   └── collection.json   # Original sample cards; historical prices
@@ -34,6 +35,12 @@ Use Python 3.10 or newer with Tkinter installed and a graphical desktop.
 Tkinter ships with many Python installers; Linux distributions may require
 their `python3-tk` package. Pillow is used to display card images. Card API
 requests use Python's standard library.
+
+The desktop interface uses a red-and-white Pokédex theme, with a blue lens,
+dark display borders, and green value panels. Its colors and reusable widget
+styles live in `pokemon_card_manager/theme.py`; it does not require a browser,
+CSS, or downloaded theme assets. Keyboard focus and disabled controls retain
+distinct styles, and the collection table uses alternating light rows.
 
 From the repository root, create a virtual environment and install dependencies:
 
@@ -111,9 +118,13 @@ Tests use temporary data directories and mocked API responses. They cover
 collection/user persistence, failed writes, original JSON import, payload shapes,
 ID/name fallback, network errors, filter-safe deletions, stale search results,
 and launch/import behavior. UI handlers are tested with mock widgets; these
-tests do not open a desktop window or contact the card service.
+tests do not contact the card service. The additional desktop smoke tests create
+real Tkinter widgets and exercise navigation, saves, filtered deletions, users,
+and minimum-size layout when a graphical display is available. They are skipped
+in a headless terminal without a display.
 
-GitHub Actions runs the suite on Python 3.10 and 3.12. For a visual smoke test,
+GitHub Actions runs the suite on Python 3.10 and 3.12 under Xvfb so the desktop
+smoke tests run as well. For a visual smoke test,
 launch the app on a desktop, open each of the three pages, search with your own
 API key, save a card, filter and remove a card, and restart to confirm persistence.
 
