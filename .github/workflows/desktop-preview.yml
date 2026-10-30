@@ -1,0 +1,73 @@
+name: Capture desktop preview
+
+on:
+  push:
+    branches: ["preview/pokedex-desktop"]
+    paths: [".github/workflows/desktop-preview.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install desktop dependencies
+        run: |
+          python -m pip install -r requirements.txt
+          sudo apt-get update
+          sudo apt-get install --yes xvfb python3-tk
+      - name: Capture actual application with example cards
+        run: |
+          xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" python - <<'PY'
+          import json
+          import tempfile
+          import time
+          import tkinter as tk
+          from pathlib import Path
+          from unittest.mock import patch
+          from PIL import ImageGrab
+          from pokemon_card_manager import model, control
+          from pokemon_card_manager.view import PokemonCardManager
+
+          output = Path("previews")
+          output.mkdir(exist_ok=True)
+          with tempfile.TemporaryDirectory() as directory:
+              model.init_database(directory)
+              model.collection[:] = json.loads(Path("examples/collection.json").read_text())
+              root = tk.Tk()
+              try:
+                  app = PokemonCardManager(root)
+                  root.update()
+                  time.sleep(0.5)
+                  root.update()
+                  x, y = root.winfo_rootx(), root.winfo_rooty()
+                  box = (x, y, x + root.winfo_width(), y + root.winfo_height())
+                  ImageGrab.grab(bbox=box).save(output / "pokedex-collection.png")
+                  app.show_page(1)
+                  app.entry.insert(0, "Pikachu")
+                  with patch.object(control, "get_card_info", return_value={
+                      "name": "Pikachu", "setName": "Mysterious Treasures",
+                      "rarity": "Common", "cardType": "Pokémon",
+                      "prices": {"market": 5.52}, "tcgPlayerId": "88086"
+                  }):
+                      app.search_card()
+                  root.update()
+                  time.sleep(0.5)
+                  root.update()
+                  ImageGrab.grab(bbox=box).save(output / "pokedex-search.png")
+              finally:
+                  root.destroy()
+                  model.close_database()
+          PY
+      - name: Save preview images on this preview branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add previews/pokedex-collection.png previews/pokedex-search.png
+          git commit -m "Capture the Pokédex desktop interface with demo data"
+          git push origin HEAD:preview/pokedex-desktop
