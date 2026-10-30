@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Pikachu",
+    "set": "Mysterious Treasures",
+    "rarity": "Common",
+    "market": 5.52,
+    "tcgPlayerId": "88086",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/88086_in_600x600.jpg"
+  },
+  {
+    "name": "Blastoise Spirit Link",
+    "set": "XY - Evolutions",
+    "rarity": "Uncommon",
+    "market": 0.11,
+    "tcgPlayerId": "124086",
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/124086_in_600x600.jpg"
+  }
+]
